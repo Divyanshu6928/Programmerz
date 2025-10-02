@@ -12,18 +12,49 @@ const ICPC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [problemsPerPage] = useState(20);
 
-  // Fetch ICPC problems from CodeChef API on component mount
+  // Fetch ICPC problems with CORS handling
   useEffect(() => {
     const fetchICPCProblems = async () => {
       try {
         setLoading(true);
-        const response = await fetch('https://www.codechef.com/api/practice/syllabus/icpc?roadmapSlug');
+        setError(null);
+
+        // Method 1: Try direct API call
+        let response;
+        let data;
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch problems');
+        try {
+          response = await fetch('https://www.codechef.com/api/practice/syllabus/icpc?roadmapSlug', {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            mode: 'cors',
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          data = await response.json();
+        } catch (corsError) {
+          console.warn('Direct API call failed, trying CORS proxy...', corsError);
+          
+          // Method 2: Try with CORS proxy as fallback
+          try {
+            response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://www.codechef.com/api/practice/syllabus/icpc?roadmapSlug')}`);
+            
+            if (!response.ok) {
+              throw new Error('Proxy fetch failed');
+            }
+            
+            data = await response.json();
+          } catch (proxyError) {
+            console.error('Proxy fetch also failed:', proxyError);
+            throw new Error('Unable to fetch ICPC problems. CORS policy is blocking the request. Please set up a backend proxy.');
+          }
         }
-        
-        const data = await response.json();
         
         // API mapping: Extract problems from nested structure
         const allProblems = [];
@@ -50,11 +81,18 @@ const ICPC = () => {
           });
         }
         
+        if (allProblems.length === 0) {
+          throw new Error('No problems found in API response');
+        }
+        
         setProblems(allProblems);
         setFilteredProblems(allProblems);
       } catch (err) {
-        setError('Unable to load ICPC problems.');
         console.error('Error fetching ICPC problems:', err);
+        setError(`Failed to load problems: ${err.message}`);
+        
+        // Load sample fallback data if API fails
+        loadFallbackData();
       } finally {
         setLoading(false);
       }
@@ -62,6 +100,56 @@ const ICPC = () => {
 
     fetchICPCProblems();
   }, []);
+
+  // Fallback data in case API fails
+  const loadFallbackData = () => {
+    const sampleProblems = [
+      {
+        name: 'Usain Bolt vs Tiger',
+        code: 'USANBOLT',
+        contest_id: '30740',
+        difficulty_type: 'easy',
+        submodule_name: 'Asia Amritapuri Onsite Round 2019',
+        link: 'https://www.codechef.com/problems/USANBOLT'
+      },
+      {
+        name: 'Sufficiently different string',
+        code: 'SDIFSTR',
+        contest_id: '30740',
+        difficulty_type: 'easy',
+        submodule_name: 'Asia Amritapuri Onsite Round 2019',
+        link: 'https://www.codechef.com/problems/SDIFSTR'
+      },
+      {
+        name: 'Maximum Subarray Sum',
+        code: 'MAXSUBSUM',
+        contest_id: '30741',
+        difficulty_type: 'medium',
+        submodule_name: 'Asia Kanpur Onsite Round 2019',
+        link: 'https://www.codechef.com/problems/MAXSUBSUM'
+      },
+      {
+        name: 'Graph Traversal',
+        code: 'GRAPHTRAV',
+        contest_id: '30742',
+        difficulty_type: 'hard',
+        submodule_name: 'Asia Kolkata Onsite Round 2019',
+        link: 'https://www.codechef.com/problems/GRAPHTRAV'
+      },
+      {
+        name: 'Dynamic Programming',
+        code: 'DPCOMPLEX',
+        contest_id: '30743',
+        difficulty_type: 'hard',
+        submodule_name: 'Asia Gwalior Onsite Round 2019',
+        link: 'https://www.codechef.com/problems/DPCOMPLEX'
+      }
+    ];
+    
+    setProblems(sampleProblems);
+    setFilteredProblems(sampleProblems);
+    setError('Using sample data. Full API access requires backend proxy setup.');
+  };
 
   // Filtering logic with pagination reset
   useEffect(() => {
@@ -81,7 +169,7 @@ const ICPC = () => {
     }
 
     setFilteredProblems(filtered);
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
   }, [searchTerm, difficultyFilter, problems]);
 
   // Pagination calculations
@@ -96,12 +184,12 @@ const ICPC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Static statistics
+  // Calculate statistics
   const stats = {
-    total: 288,
-    easy: 285,
-    medium: 3,
-    hard: 0
+    total: problems.length,
+    easy: problems.filter(p => p.difficulty_type.toLowerCase() === 'easy').length,
+    medium: problems.filter(p => p.difficulty_type.toLowerCase() === 'medium').length,
+    hard: problems.filter(p => p.difficulty_type.toLowerCase() === 'hard').length
   };
 
   const getDifficultyColor = (difficulty) => {
@@ -295,9 +383,11 @@ const ICPC = () => {
           font-family: 'Space Grotesk', sans-serif;
           min-width: 40px;
           text-align: center;
+          cursor: pointer;
+          border: none;
         }
         
-        .pagination-btn:hover {
+        .pagination-btn:hover:not(:disabled) {
           background: rgba(102, 126, 234, 0.3);
           border-color: rgba(102, 126, 234, 0.4);
           color: white;
@@ -314,9 +404,11 @@ const ICPC = () => {
           cursor: not-allowed;
         }
         
-        .pagination-btn:disabled:hover {
-          transform: none;
-          background: rgba(255, 255, 255, 0.05);
+        .alert-warning {
+          background: rgba(251, 191, 36, 0.1);
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 15px;
+          color: #fbbf24;
         }
       `}</style>
 
@@ -332,6 +424,14 @@ const ICPC = () => {
             Solve authentic ICPC problems from previous contests
           </p>
         </div>
+
+        {/* CORS Warning */}
+        {error && error.includes('sample data') && (
+          <div className="alert alert-warning mb-4 p-3">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            <strong>Note:</strong> {error}
+          </div>
+        )}
 
         <div className="row">
           {/* Main Content */}
@@ -370,17 +470,19 @@ const ICPC = () => {
               </div>
             )}
 
-            {/* Error State */}
-            {error && (
+            {/* Error State (Critical Errors Only) */}
+            {error && !error.includes('sample data') && (
               <div className="glass-card p-4 text-center">
                 <i className="bi bi-exclamation-triangle fs-1 text-warning mb-3"></i>
                 <h4 className="text-light">{error}</h4>
-                <p className="text-light opacity-75">Please try again later.</p>
+                <p className="text-light opacity-75">
+                  To fix this in production, set up a backend proxy server.
+                </p>
               </div>
             )}
 
             {/* Problems Display */}
-            {!loading && !error && (
+            {!loading && (
               <>
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <span className="text-light opacity-75">
@@ -391,7 +493,7 @@ const ICPC = () => {
                   </span>
                 </div>
                 
-                {/* Problems Grid - 2 problems per row */}
+                {/* Problems Grid */}
                 <div className="row g-4">
                   {currentProblems.map((problem, index) => (
                     <div key={`${problem.code}-${index}`} className="col-md-6">
