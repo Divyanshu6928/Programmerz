@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import ProblemsPage from './pages/Problem';
 import ICPC from './pages/ICPC';
+import Codeforces from './pages/Codeforces';
 
 const App = () => {
   return (
@@ -22,7 +23,7 @@ const App = () => {
           <Route path="/icpc" element={<ICPC />} />
           
           {/* Future Routes - Add these as you create more pages */}
-          <Route path="/codeforces" element={<div>Codeforces Page Coming Soon</div>} />
+          <Route path="/codeforces" element={<Codeforces />} />
           <Route path="/codechef" element={<div>Codechef Page Coming Soon</div>} />
           <Route path="/multi-platforms" element={<div>Multi-platforms Page Coming Soon</div>} />
           <Route path="/problems" element={<ProblemsPage /> } />
