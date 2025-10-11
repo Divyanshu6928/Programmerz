@@ -39,7 +39,7 @@ const ProblemsPage = () => {
           throw new Error('Invalid response from Codeforces API');
         }
 
-        const cfProblems = data.result.problems.slice(0, 200).map(problem => ({
+        const cfProblems = data.result.problems.slice(0, 10000).map(problem => ({
           title: problem.name,
           code: `${problem.contestId}${problem.index}`,
           platform: 'Codeforces',
