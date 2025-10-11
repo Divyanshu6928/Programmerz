@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 
 // Backend API URL
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api' || 'https://programmerz.onrender.com/api';
 
 const COLORS = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#43e97b'];
 
@@ -303,6 +303,7 @@ const CodeChefProfile = () => {
         
         .glass-card {
           background: rgba(255, 255, 255, 0.03);
+          margin-top : 40px
           backdrop-filter: blur(25px);
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 20px;
@@ -514,7 +515,7 @@ const CodeChefProfile = () => {
         }
       `}</style>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', marginTop: '60px' }}>
         {!handle ? (
           <div style={{ maxWidth: '500px', margin: '0 auto' }}>
             <div className="glass-card" style={{ padding: '40px', textAlign: 'center' }}>
