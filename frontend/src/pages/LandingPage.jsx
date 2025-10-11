@@ -68,7 +68,7 @@ const LandingPage = () => {
                     Get Started
                     <i className="bi bi-arrow-right ms-2"></i>
                   </a>
-                  <a href="#problems" className="cyber-button" style={{
+                  <a href="problems" className="cyber-button" style={{
                     background: 'rgba(255, 255, 255, 0.1)',
                     borderColor: 'rgba(255, 255, 255, 0.2)'
                   }}>
@@ -340,7 +340,7 @@ const LandingPage = () => {
                   </div>
                 </div>
                 
-                <a href="#" className="cyber-button w-100 text-center justify-content-center d-flex">
+                <a href="codeforces" className="cyber-button w-100 text-center justify-content-center d-flex">
                   Connect Codeforces
                   <i className="bi bi-link-45deg ms-2"></i>
                 </a>
@@ -385,7 +385,7 @@ const LandingPage = () => {
                   </div>
                 </div>
                 
-                <a href="#" className="cyber-button w-100 text-center justify-content-center d-flex">
+                <a href="codechef" className="cyber-button w-100 text-center justify-content-center d-flex">
                   Connect Codechef
                   <i className="bi bi-link-45deg ms-2"></i>
                 </a>

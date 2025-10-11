@@ -7,6 +7,8 @@ import LandingPage from './pages/LandingPage';
 import ProblemsPage from './pages/Problem';
 import ICPC from './pages/ICPC';
 import Codeforces from './pages/Codeforces';
+import Codechef from './pages/Codechef';
+import MultiPlatforms from './pages/MultiPlatforms';
 
 const App = () => {
   return (
@@ -24,8 +26,8 @@ const App = () => {
           
           {/* Future Routes - Add these as you create more pages */}
           <Route path="/codeforces" element={<Codeforces />} />
-          <Route path="/codechef" element={<div>Codechef Page Coming Soon</div>} />
-          <Route path="/multi-platforms" element={<div>Multi-platforms Page Coming Soon</div>} />
+          <Route path="/codechef" element={<Codechef/>} />
+          <Route path="/multi-platforms" element={<MultiPlatforms/>} />
           <Route path="/problems" element={<ProblemsPage /> } />
           // <Route path="/profile" element={<div>Profile Page Coming Soon</div>} />
           
