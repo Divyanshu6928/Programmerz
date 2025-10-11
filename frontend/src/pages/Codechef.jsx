@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 
 // Backend API URL
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api' || 'https://programmerz.onrender.com/api';
+const API_BASE =  'https://programmerz.onrender.com' || 'http://localhost:5000/api';
 
 const COLORS = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#43e97b'];
 
@@ -37,8 +37,8 @@ const CodeChefProfile = () => {
     try {
       // Fetch user data and upcoming contests in parallel
       const [userResponse, contestsResponse] = await Promise.all([
-        fetch(`${API_BASE}/codechef/${username}`),
-        fetch(`${API_BASE}/codechef-contests`)
+        fetch(`${API_BASE}/api/codechef/${username}`),
+        fetch(`${API_BASE}/api/codechef-contests`)
       ]);
       
       if (!userResponse.ok) {
