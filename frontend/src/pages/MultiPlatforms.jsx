@@ -302,22 +302,86 @@ const MultiPlatforms = () => {
   };
 
   const createRecommendedProblems = (tagStats = []) => {
-    const topTags = (tagStats || []).slice(0, 5).map(t => t.name);
-    const recs = [];
-    topTags.forEach((tag) => {
+  const topTags = (tagStats || []).slice(0, 5).map(t => t.name);
+  const recs = [];
+
+  // Define a mapping of common tags to actual LeetCode problem slugs
+  const tagToProblems = {
+    'Array': [
+      { title: 'Two Sum', slug: 'two-sum' },
+      { title: 'Best Time to Buy and Sell Stock', slug: 'best-time-to-buy-and-sell-stock' }
+    ],
+    'String': [
+      { title: 'Valid Parentheses', slug: 'valid-parentheses' },
+      { title: 'Longest Substring Without Repeating Characters', slug: 'longest-substring-without-repeating-characters' }
+    ],
+    'Hash Table': [
+      { title: 'Contains Duplicate', slug: 'contains-duplicate' },
+      { title: 'Group Anagrams', slug: 'group-anagrams' }
+    ],
+    'Dynamic Programming': [
+      { title: 'Climbing Stairs', slug: 'climbing-stairs' },
+      { title: 'House Robber', slug: 'house-robber' }
+    ],
+    'Tree': [
+      { title: 'Binary Tree Inorder Traversal', slug: 'binary-tree-inorder-traversal' },
+      { title: 'Maximum Depth of Binary Tree', slug: 'maximum-depth-of-binary-tree' }
+    ],
+    'Linked List': [
+      { title: 'Merge Two Sorted Lists', slug: 'merge-two-sorted-lists' },
+      { title: 'Reverse Linked List', slug: 'reverse-linked-list' }
+    ],
+    'Math': [
+      { title: 'Palindrome Number', slug: 'palindrome-number' },
+      { title: 'Plus One', slug: 'plus-one' }
+    ],
+    'Two Pointers': [
+      { title: 'Remove Duplicates from Sorted Array', slug: 'remove-duplicates-from-sorted-array' },
+      { title: 'Container With Most Water', slug: 'container-with-most-water' }
+    ]
+  };
+
+  // Generate recommendations based on user's top tags
+  topTags.forEach(tag => {
+    const problems = tagToProblems[tag] || [];
+    if (problems.length > 0) {
+      // Add Easy & Medium from this tag
       recs.push(
-        { title: `${tag} - Easy Practice`, url: `https://leetcode.com/tag/${encodeURIComponent(tag)}/` },
-        { title: `${tag} - Medium Practice`, url: `https://leetcode.com/tag/${encodeURIComponent(tag)}/` }
+        { 
+          title: `${problems[0].title} (Easy)`, 
+          url: `https://leetcode.com/problems/${problems[0].slug}/`
+        },
+        { 
+          title: `${problems[1]?.title || problems[0].title} (Medium)`, 
+          url: `https://leetcode.com/problems/${problems[1]?.slug || problems[0].slug}/`
+        }
       );
-    });
-    if (recs.length === 0) {
+    } else {
+      // Fallback: link to tag page
       recs.push(
-        { title: 'Two Sum (Easy)', url: 'https://leetcode.com/problems/two-sum/' },
-        { title: 'Longest Substring Without Repeating Characters (Medium)', url: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/' }
+        { 
+          title: `${tag} - Easy Practice`, 
+          url: `https://leetcode.com/tag/${encodeURIComponent(tag)}/` 
+        },
+        { 
+          title: `${tag} - Medium Practice`, 
+          url: `https://leetcode.com/tag/${encodeURIComponent(tag)}/` 
+        }
       );
     }
-    setRecommendedProblems(recs.slice(0, 8));
-  };
+  });
+
+  // If no tags, fall back to popular problems
+  if (recs.length === 0) {
+    recs.push(
+      { title: 'Two Sum (Easy)', url: 'https://leetcode.com/problems/two-sum/' },
+      { title: 'Longest Substring Without Repeating Characters (Medium)', url: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/' },
+      { title: 'Merge Two Sorted Lists (Easy)', url: 'https://leetcode.com/problems/merge-two-sorted-lists/' },
+    );
+  }
+
+  setRecommendedProblems(recs.slice(0, 8));
+}; 
 
   // AtCoder helpers
   const getAtCoderDifficultyData = () => {
@@ -811,7 +875,7 @@ const MultiPlatforms = () => {
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                               ))}
                             </Pie>
-                            <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                            <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                           </PieChart>
                         </ResponsiveContainer>
                       ) : (
@@ -830,7 +894,7 @@ const MultiPlatforms = () => {
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                             <XAxis dataKey="difficulty" stroke="#fff" />
                             <YAxis stroke="#fff" />
-                            <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                            <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                             <Legend />
                             <Bar dataKey="count" fill="#667eea" name="Problems Solved" />
                             <Bar dataKey="submissions" fill="#f093fb" name="Total Submissions" />
@@ -859,7 +923,7 @@ const MultiPlatforms = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="date" stroke="#fff" angle={-45} textAnchor="end" height={80} fontSize={11} />
                         <YAxis stroke="#fff" />
-                        <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                        <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                         <Legend />
                         <Line type="monotone" dataKey="rating" stroke="#667eea" name="Rating" strokeWidth={2} dot={{ r: 3 }} />
                         <Line type="monotone" dataKey="performance" stroke="#f093fb" name="Performance" strokeWidth={1} strokeDasharray="5 5" dot={false} />
@@ -880,7 +944,7 @@ const MultiPlatforms = () => {
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                             <XAxis dataKey="name" stroke="#fff" />
                             <YAxis stroke="#fff" />
-                            <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                            <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                             <Bar dataKey="value" name="Problems Solved">
                               {getAtCoderDifficultyData().map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
@@ -904,7 +968,7 @@ const MultiPlatforms = () => {
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                             <XAxis dataKey="point" stroke="#fff" />
                             <YAxis stroke="#fff" />
-                            <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                            <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                             <Bar dataKey="count" fill="#4facfe" name="Solved" />
                           </BarChart>
                         </ResponsiveContainer>
@@ -938,7 +1002,7 @@ const MultiPlatforms = () => {
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                           <XAxis dataKey="date" stroke="#fff" angle={-45} textAnchor="end" height={80} fontSize={11} />
                           <YAxis stroke="#fff" />
-                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                           <Area type="monotone" dataKey="submissions" stroke="#667eea" fillOpacity={1} fill="url(#colorSubmissions)" />
                         </AreaChart>
                       </ResponsiveContainer>
@@ -963,7 +1027,7 @@ const MultiPlatforms = () => {
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                           <XAxis dataKey="date" stroke="#fff" angle={-45} textAnchor="end" height={80} fontSize={11} />
                           <YAxis stroke="#fff" />
-                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                           <Area type="monotone" dataKey="submissions" stroke="#667eea" fillOpacity={1} fill="url(#colorActivity)" />
                         </AreaChart>
                       </ResponsiveContainer>
@@ -992,7 +1056,7 @@ const MultiPlatforms = () => {
                           <PolarAngleAxis dataKey="subject" stroke="#fff" />
                           <PolarRadiusAxis />
                           <Radar name="Problems" dataKey="value" stroke="#667eea" fill="#667eea" fillOpacity={0.6} />
-                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                         </RadarChart>
                       </ResponsiveContainer>
                       <div className="mt-3">
@@ -1015,7 +1079,7 @@ const MultiPlatforms = () => {
                           <PolarAngleAxis dataKey="subject" stroke="#fff" />
                           <PolarRadiusAxis />
                           <Radar name="Problems" dataKey="value" stroke="#667eea" fill="#667eea" fillOpacity={0.6} />
-                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                         </RadarChart>
                       </ResponsiveContainer>
                       <div className="mt-3">
