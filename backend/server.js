@@ -594,6 +594,56 @@ app.get('/api/codeforces-problems', async (req, res) => {
   }
 });
 
+app.get('/api/atcoder/submissions/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const url = `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${encodeURIComponent(username)}&from_second=0`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('AtCoder submissions error:', error);
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
+app.get('/api/atcoder/history/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const url = `https://kenkoooo.com/atcoder/proxy/users/${encodeURIComponent(username)}/history/json`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return res.status(404).json({ error: 'User history not found' });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('AtCoder history error:', error);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+app.get('/api/atcoder/resources/:resource', async (req, res) => {
+  const allowed = ['problem-models.json', 'merged-problems.json', 'contests.json', 'contest-problem.json', 'ac.json'];
+  if (!allowed.includes(req.params.resource)) {
+    return res.status(400).json({ error: 'Invalid resource' });
+  }
+  try {
+    const url = `https://kenkoooo.com/atcoder/resources/${req.params.resource}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Resource fetch failed');
+    const data = await response.json();
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Optional: cache 1 hour
+    res.json(data);
+  } catch (error) {
+    console.error('AtCoder resource error:', error);
+    res.status(500).json({ error: 'Failed to fetch resource' });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });

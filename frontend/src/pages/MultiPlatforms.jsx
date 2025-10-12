@@ -374,9 +374,31 @@ const MultiPlatforms = () => {
   // If no tags, fall back to popular problems
   if (recs.length === 0) {
     recs.push(
-      { title: 'Two Sum (Easy)', url: 'https://leetcode.com/problems/two-sum/' },
-      { title: 'Longest Substring Without Repeating Characters (Medium)', url: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/' },
-      { title: 'Merge Two Sorted Lists (Easy)', url: 'https://leetcode.com/problems/merge-two-sorted-lists/' },
+      { id: 1, title: "Two Sum", slug: "two-sum", difficulty: "Easy" },
+      { id: 2, title: "Add Two Numbers", slug: "add-two-numbers", difficulty: "Medium" },
+      { id: 3, title: "Longest Substring Without Repeating Characters", slug: "longest-substring-without-repeating-characters", difficulty: "Medium" },
+      { id: 20, title: "Valid Parentheses", slug: "valid-parentheses", difficulty: "Easy" },
+      { id: 21, title: "Merge Two Sorted Lists", slug: "merge-two-sorted-lists", difficulty: "Easy" },
+      { id: 53, title: "Maximum Subarray", slug: "maximum-subarray", difficulty: "Medium" },
+      { id: 100, title: "Same Tree", slug: "same-tree", difficulty: "Easy" },
+      { id: 104, title: "Maximum Depth of Binary Tree", slug: "maximum-depth-of-binary-tree", difficulty: "Easy" },
+      { id: 121, title: "Best Time to Buy and Sell Stock", slug: "best-time-to-buy-and-sell-stock", difficulty: "Easy" },
+      { id: 125, title: "Valid Palindrome", slug: "valid-palindrome", difficulty: "Easy" },
+      { id: 136, title: "Single Number", slug: "single-number", difficulty: "Easy" },
+      { id: 141, title: "Linked List Cycle", slug: "linked-list-cycle", difficulty: "Easy" },
+      { id: 200, title: "Number of Islands", slug: "number-of-islands", difficulty: "Medium" },
+      { id: 206, title: "Reverse Linked List", slug: "reverse-linked-list", difficulty: "Easy" },
+      { id: 217, title: "Contains Duplicate", slug: "contains-duplicate", difficulty: "Easy" },
+      { id: 234, title: "Palindrome Linked List", slug: "palindrome-linked-list", difficulty: "Easy" },
+      { id: 238, title: "Product of Array Except Self", slug: "product-of-array-except-self", difficulty: "Medium" },
+      { id: 283, title: "Move Zeroes", slug: "move-zeroes", difficulty: "Easy" },
+      { id: 287, title: "Find the Duplicate Number", slug: "find-the-duplicate-number", difficulty: "Medium" },
+      { id: 347, title: "Top K Frequent Elements", slug: "top-k-frequent-elements", difficulty: "Medium" },
+      { id: 509, title: "Fibonacci Number", slug: "fibonacci-number", difficulty: "Easy" },
+      { id: 543, title: "Diameter of Binary Tree", slug: "diameter-of-binary-tree", difficulty: "Easy" },
+      { id: 704, title: "Binary Search", slug: "binary-search", difficulty: "Easy" },
+      { id: 977, title: "Squares of a Sorted Array", slug: "squares-of-a-sorted-array", difficulty: "Easy" },
+      { id: 1480, title: "Running Sum of 1d Array", slug: "running-sum-of-1d-array", difficulty: "Easy" }
     );
   }
 
@@ -807,9 +829,9 @@ const MultiPlatforms = () => {
                 <button className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
                   <i className="bi bi-graph-up me-2"></i>Analytics
                 </button>
-                <button className={`tab-btn ${activeTab === 'skills' ? 'active' : ''}`} onClick={() => setActiveTab('skills')}>
+                {/* <button className={`tab-btn ${activeTab === 'skills' ? 'active' : ''}`} onClick={() => setActiveTab('skills')}>
                   <i className="bi bi-lightbulb me-2"></i>Skills
-                </button>
+                </button> */}
                 <button className={`tab-btn ${activeTab === 'problems' ? 'active' : ''}`} onClick={() => setActiveTab('problems')}>
                   <i className="bi bi-list-stars me-2"></i>
                   {platform === 'leetcode' ? 'Problems & Contests' : 'Resources'}
@@ -1042,7 +1064,7 @@ const MultiPlatforms = () => {
             )}
 
             {/* Skills Tab */}
-            {activeTab === 'skills' && (
+            {/* {activeTab === 'skills' && (
               <div className="glass-card p-4">
                 <h5 className="text-light fw-bold mb-4">
                   {platform === 'leetcode' ? 'Top Tags / Skills' : 'Contest Categories'}
@@ -1095,7 +1117,7 @@ const MultiPlatforms = () => {
                   )
                 )}
               </div>
-            )}
+            )} */}
 
             {/* Problems & Resources Tab */}
             {activeTab === 'problems' && (
@@ -1128,7 +1150,7 @@ const MultiPlatforms = () => {
                   </>
                 )}
                 <h5 className="text-light fw-bold mb-3">
-                  {platform === 'leetcode' ? 'Recommended Problems' : 'AtCoder Resources'}
+                  {platform === 'leetcode' ? 'Top Leetcode Problems' : 'AtCoder Resources'}
                 </h5>
                 {recommendedProblems && recommendedProblems.length > 0 ? (
                   <div className="row">
@@ -1150,7 +1172,7 @@ const MultiPlatforms = () => {
                 )}
                 <div className="mt-3 text-light opacity-75 small">
                   {platform === 'leetcode'
-                    ? 'Recommendations are generated from your top solved tags. Problem links redirect to LeetCode tag pages or example problems.'
+                    ? 'Happy Learning.......'
                     : 'Explore AtCoder contests and practice problems using the resources above.'
                   }
                 </div>
