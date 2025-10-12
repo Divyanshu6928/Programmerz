@@ -22,7 +22,7 @@ import {
   Radar
 } from 'recharts';
 
-// Small helper to create last N days timestamps (in seconds)
+// Helper: last N days in seconds
 const getLastNDaysTimestamps = (n) => {
   const days = [];
   const now = new Date();
@@ -34,6 +34,18 @@ const getLastNDaysTimestamps = (n) => {
   return days;
 };
 
+// AtCoder rating color helper
+const getAtCoderColor = (rating) => {
+  if (rating >= 2800) return 'Red';
+  if (rating >= 2400) return 'Orange';
+  if (rating >= 2000) return 'Yellow';
+  if (rating >= 1600) return 'Blue';
+  if (rating >= 1200) return 'Cyan';
+  if (rating >= 800) return 'Green';
+  if (rating >= 400) return 'Brown';
+  return 'Gray';
+};
+
 const MultiPlatforms = () => {
   const [platform, setPlatform] = useState('leetcode');
   const [handle, setHandle] = useState('');
@@ -42,10 +54,8 @@ const MultiPlatforms = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
-  // For contests & recommended problems
   const [contests, setContests] = useState([]);
   const [recommendedProblems, setRecommendedProblems] = useState([]);
-  // Heatmap selection
   const [selectedDay, setSelectedDay] = useState(null);
 
   useEffect(() => {
@@ -62,17 +72,16 @@ const MultiPlatforms = () => {
   }, [platform]);
 
   useEffect(() => {
-    // fetch contests once when component mounts
-    fetchContests();
-  }, []);
+    if (platform === 'leetcode') {
+      fetchContests();
+    }
+  }, [platform]);
 
   const fetchContests = async () => {
     try {
-      // kontests.net provides contest lists including LeetCode
       const resp = await fetch('https://kontests.net/api/v1/leetcode');
       if (!resp.ok) return;
       const data = await resp.json();
-      // sort by start_time ascending and take next 4
       const upcoming = data
         .map(c => ({
           name: c.name,
@@ -84,7 +93,6 @@ const MultiPlatforms = () => {
         .slice(0, 4);
       setContests(upcoming);
     } catch (err) {
-      // silently ignore contest failures
       console.warn('Could not fetch contests', err);
     }
   };
@@ -93,15 +101,12 @@ const MultiPlatforms = () => {
     setLoading(true);
     setError(null);
     try {
-      let response, data;
       if (platform === 'leetcode') {
-        // Using the public LeetCode API
-        response = await fetch(`https://leetcode-api-faisalshohag.vercel.app/${userHandle}`);
+        const response = await fetch(`https://leetcode-api-faisalshohag.vercel.app/${userHandle}`);
         if (!response.ok) {
           throw new Error('User not found. Please verify the username.');
         }
-        data = await response.json();
-        // Transform the API response to match our component structure
+        const data = await response.json();
         const transformedData = {
           success: true,
           totalSolved: data.totalSolved || 0,
@@ -124,22 +129,127 @@ const MultiPlatforms = () => {
           tagStats: data.tagStats || []
         };
         setUserInfo(transformedData);
-        // create quick recommended problems based on top tags
         createRecommendedProblems(transformedData.tagStats || []);
-      } else if (platform === 'hackerrank') {
-        // Keep existing HackerRank API logic
-        const API_URL = window.location.hostname === 'localhost'
-          ? 'http://localhost:5000'
-          : 'https://api.programmerz.live';
-        response = await fetch(`${API_URL}/api/${platform}/${userHandle}`);
-        if (!response.ok) {
+      } else if (platform === 'atcoder') {
+        const now = Math.floor(Date.now() / 1000);
+        const oneYearAgo = now - 365 * 24 * 3600;
+
+        // ✅ All user data via YOUR backend proxy (CORS-safe)
+        const [
+          submissionsResp,
+          historyResp,
+          problemModelsResp,
+          mergedProblemsResp,
+          contestsResp,
+          contestProblemMapResp
+        ] = await Promise.all([
+          fetch(`/api/atcoder/submissions/${userHandle}`),
+          fetch(`/api/atcoder/history/${userHandle}`),
+          fetch('https://kenkoooo.com/atcoder/resources/problem-models.json'),
+          fetch('https://kenkoooo.com/atcoder/resources/merged-problems.json'),
+          fetch('https://kenkoooo.com/atcoder/resources/contests.json'),
+          fetch('https://kenkoooo.com/atcoder/resources/contest-problem.json')
+        ]);
+
+        if (!submissionsResp.ok) {
           throw new Error('User not found. Please verify the username.');
         }
-        data = await response.json();
-        if (!data.success) {
-          throw new Error('User not found');
-        }
-        setUserInfo(data);
+
+        const submissions = await submissionsResp.json();
+        const history = historyResp.ok ? await historyResp.json() : [];
+        const problemModels = problemModelsResp.ok ? await problemModelsResp.json() : {};
+        const mergedProblems = mergedProblemsResp.ok ? await mergedProblemsResp.json() : [];
+        const contestsMap = contestsResp.ok ? await contestsResp.json() : {};
+        const contestProblemMap = contestProblemMapResp.ok ? await contestProblemMapResp.json() : {};
+
+        // Build problem info map
+        const problemInfoMap = {};
+        mergedProblems.forEach(p => {
+          if (p.id) problemInfoMap[p.id] = p;
+        });
+
+        const acceptedSubmissions = submissions.filter(s => s.result === 'AC');
+        const uniqueProblems = [...new Set(acceptedSubmissions.map(s => s.problem_id))];
+
+        // Rating history
+        const ratingHistory = history
+          .map(h => {
+            // Safely parse RatedTime
+            const ratedTime = h.RatedTime;
+            let dateStr = null;
+
+            if (ratedTime) {
+              const date = new Date(ratedTime);
+              if (!isNaN(date.getTime())) {
+                dateStr = date.toISOString().split('T')[0];
+              }
+            }
+
+            return {
+              contest: h.ContestName,
+              date: dateStr, // may be null, but won't crash
+              rating: h.NewRating,
+              performance: h.Performance
+            };
+          })
+          .filter(h => h.rating != null && h.date != null); // only keep valid entries
+        const latestRating = ratingHistory.length > 0 ? ratingHistory[ratingHistory.length - 1].rating : 0;
+        const ratingColor = getAtCoderColor(latestRating);
+
+        // Group problems
+        const problemsByRating = {};
+        const problemsByContest = {};
+        const problemsByPoint = {};
+
+        uniqueProblems.forEach(pid => {
+          const model = problemModels[pid];
+          const merged = problemInfoMap[pid];
+          const difficulty = model?.difficulty || 0;
+          const point = merged?.point || (difficulty > 0 ? Math.round(difficulty / 400) * 400 : 0);
+          const bucket = Math.floor(difficulty / 400) * 400;
+
+          problemsByRating[bucket] = (problemsByRating[bucket] || 0) + 1;
+          problemsByPoint[point] = (problemsByPoint[point] || 0) + 1;
+
+          const contestId = merged?.contest_id || (pid.split('_')[0] || 'unknown');
+          const contest = contestsMap[contestId] || { title: contestId };
+          const category = contest.title || contestId;
+          problemsByContest[category] = (problemsByContest[category] || 0) + 1;
+        });
+
+        // Activity data
+        const activityMap = {};
+        submissions
+          .filter(s => s.epoch_second >= oneYearAgo)
+          .forEach(s => {
+            const day = new Date(s.epoch_second * 1000).toISOString().split('T')[0];
+            activityMap[day] = (activityMap[day] || 0) + 1;
+          });
+
+        const activityData = Object.entries(activityMap)
+          .map(([date, count]) => ({ date, submissions: count }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+        const transformedData = {
+          success: true,
+          username: userHandle,
+          totalSolved: uniqueProblems.length,
+          totalSubmissions: submissions.length,
+          acceptedSubmissions: acceptedSubmissions.length,
+          rating: latestRating,
+          ratingColor,
+          ratingHistory,
+          problemsByRating,
+          problemsByContest,
+          problemsByPoint,
+          recentSubmissions: submissions.slice(0, 50),
+          activityData,
+          contestsMap,
+          problemInfoMap
+        };
+
+        setUserInfo(transformedData);
+        createAtCoderRecommendedProblems(transformedData);
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -159,16 +269,11 @@ const MultiPlatforms = () => {
   };
 
   const handlePlatformChange = (newPlatform) => {
-    if (newPlatform === 'hackerrank') {
-      // Show "Coming Soon" tooltip
-      alert('HackerRank support is coming soon!');
-      return;
-    }
     setPlatform(newPlatform);
     setActiveTab('overview');
   };
 
-  // LeetCode specific functions
+  // LeetCode helpers
   const getLeetCodeDifficultyData = () => {
     if (!userInfo?.problemsSolved) return [];
     return [
@@ -190,77 +295,105 @@ const MultiPlatforms = () => {
     if (!userInfo?.submissionCalendar) return [];
     const calendar = userInfo.submissionCalendar;
     const sortedDates = Object.keys(calendar).sort((a, b) => parseInt(a) - parseInt(b));
-    // Get last 30 days of data
     return sortedDates.slice(-30).map(timestamp => ({
       date: new Date(parseInt(timestamp) * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       submissions: calendar[timestamp]
     }));
   };
 
-  // Create recommended problems: simple approach -> build search links by top tags and diff mix
   const createRecommendedProblems = (tagStats = []) => {
     const topTags = (tagStats || []).slice(0, 5).map(t => t.name);
     const recs = [];
-    // For each tag create 2 recommendations (one easy/one medium) as links to LeetCode search/tag pages
-    topTags.forEach((tag, idx) => {
-      const easy = {
-        title: `${tag} - Easy Practice`,
-        url: `https://leetcode.com/tag/${encodeURIComponent(tag)}/`
-      };
-      const medium = {
-        title: `${tag} - Medium Practice`,
-        url: `https://leetcode.com/tag/${encodeURIComponent(tag)}/`
-      };
-      recs.push(easy, medium);
+    topTags.forEach((tag) => {
+      recs.push(
+        { title: `${tag} - Easy Practice`, url: `https://leetcode.com/tag/${encodeURIComponent(tag)}/` },
+        { title: `${tag} - Medium Practice`, url: `https://leetcode.com/tag/${encodeURIComponent(tag)}/` }
+      );
     });
-    // Fallback: if no tags, suggest popular categories links
     if (recs.length === 0) {
       recs.push(
         { title: 'Two Sum (Easy)', url: 'https://leetcode.com/problems/two-sum/' },
         { title: 'Longest Substring Without Repeating Characters (Medium)', url: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/' }
       );
     }
-    // Keep only first 8 recommendations
     setRecommendedProblems(recs.slice(0, 8));
   };
 
-  // HackerRank specific functions
-  const getHackerRankSkillsData = () => {
-    if (!userInfo?.skills) return [];
-    return userInfo.skills.map(skill => ({
-      name: skill.name,
-      level: skill.level,
-      score: skill.score || 0
-    }));
+  // AtCoder helpers
+  const getAtCoderDifficultyData = () => {
+    if (!userInfo?.problemsByRating) return [];
+    return Object.entries(userInfo.problemsByRating)
+      .map(([rating, count]) => ({
+        name: `${rating}+`,
+        value: count,
+        color: getColorByRating(parseInt(rating))
+      }))
+      .sort((a, b) => parseInt(a.name) - parseInt(b.name));
   };
 
-  const getHackerRankBadgesData = () => {
-    if (!userInfo?.badges) return [];
-    const badgeCount = {};
-    userInfo.badges.forEach(badge => {
-      const level = badge.level || 'Bronze';
-      badgeCount[level] = (badgeCount[level] || 0) + 1;
-    });
-    return Object.entries(badgeCount).map(([name, value]) => ({ name, value }));
+  const getColorByRating = (rating) => {
+    if (rating >= 2800) return '#ff0000';
+    if (rating >= 2400) return '#ff8000';
+    if (rating >= 2000) return '#c0c000';
+    if (rating >= 1600) return '#0000ff';
+    if (rating >= 1200) return '#00c0c0';
+    if (rating >= 800) return '#008000';
+    if (rating >= 400) return '#804000';
+    return '#808080';
   };
 
-  const getHackerRankChallengesData = () => {
-    if (!userInfo?.challengesSolved) return [];
-    const categories = userInfo.challengesSolved;
-    return Object.entries(categories).map(([name, value]) => ({ name, value }));
+  const getAtCoderCategoryData = () => {
+    if (!userInfo?.problemsByContest) return [];
+    return Object.entries(userInfo.problemsByContest)
+      .slice(0, 10)
+      .map(([category, count]) => ({
+        subject: category.toUpperCase(),
+        value: count
+      }));
+  };
+
+  const getAtCoderActivityData = () => {
+    return userInfo?.activityData || [];
+  };
+
+  const createAtCoderRecommendedProblems = (data) => {
+    const recs = [
+      { title: 'AtCoder Beginner Contest', url: 'https://atcoder.jp/contests/archive?ratedType=1&category=0' },
+      { title: 'AtCoder Regular Contest', url: 'https://atcoder.jp/contests/archive?ratedType=2&category=0' },
+      { title: 'AtCoder Grand Contest', url: 'https://atcoder.jp/contests/archive?ratedType=3&category=0' },
+      { title: 'Practice Problems', url: 'https://kenkoooo.com/atcoder/#/table/' },
+      { title: 'Virtual Contest', url: 'https://kenkoooo.com/atcoder/#/contest/recent' },
+      { title: 'Problem Recommendations', url: `https://kenkoooo.com/atcoder/#/user/${handle}` }
+    ];
+    setRecommendedProblems(recs);
   };
 
   const COLORS = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#43e97b', '#38f9d7', '#fa709a'];
 
-  // Heatmap renderer (simple CSS-grid based using submissionCalendar object)
   const renderHeatmap = () => {
-    // Prepare 30 days (last 30) mapping to counts
     const last30 = getLastNDaysTimestamps(30);
-    const calendar = userInfo?.submissionCalendar || {};
+    let calendar = {};
+    if (platform === 'leetcode') {
+      calendar = userInfo?.submissionCalendar || {};
+    } else if (platform === 'atcoder') {
+      if (userInfo?.recentSubmissions) {
+        userInfo.recentSubmissions.forEach(sub => {
+          const ts = sub.epoch_second;
+          calendar[ts] = (calendar[ts] || 0) + 1;
+        });
+      }
+    }
     const squares = last30.map(ts => {
-      // The API used earlier uses seconds timestamps as keys; try both raw and string
       const keyA = String(ts);
-      const count = calendar[keyA] || 0;
+      let count = calendar[keyA] || 0;
+      if (platform === 'atcoder' && count === 0) {
+        const dayStart = ts;
+        const dayEnd = ts + 86400;
+        count = Object.keys(calendar).filter(k => {
+          const subTs = parseInt(k);
+          return subTs >= dayStart && subTs < dayEnd;
+        }).reduce((sum, k) => sum + calendar[k], 0);
+      }
       return { ts, count, date: new Date(ts * 1000) };
     });
     const max = Math.max(...squares.map(s => s.count), 1);
@@ -268,8 +401,7 @@ const MultiPlatforms = () => {
       <div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 6 }}>
           {squares.map((s, i) => {
-            // intensity scale
-            const intensity = Math.round((s.count / max) * 4); // 0-4
+            const intensity = Math.round((s.count / max) * 4);
             const bg = ['rgba(255,255,255,0.06)', 'rgba(102,126,234,0.12)', 'rgba(102,126,234,0.22)', 'rgba(102,126,234,0.34)', 'rgba(102,126,234,0.6)'][intensity];
             return (
               <div
@@ -301,7 +433,17 @@ const MultiPlatforms = () => {
                 <div className="text-light opacity-75">Submissions: {selectedDay.count}</div>
               </div>
               <div>
-                <button className="cyber-button btn-sm" onClick={() => window.open(`https://leetcode.com/studyplan/?progress=${handle}`, '_blank')}>View on LeetCode</button>
+                <button 
+                  className="cyber-button btn-sm" 
+                  onClick={() => window.open(
+                    platform === 'leetcode' 
+                      ? `https://leetcode.com/${handle}` 
+                      : `https://atcoder.jp/users/${handle}`, 
+                    '_blank'
+                  )}
+                >
+                  View Profile
+                </button>
               </div>
             </div>
           </div>
@@ -403,29 +545,6 @@ const MultiPlatforms = () => {
           border-color: rgba(102, 126, 234, 0.5);
           color: white;
         }
-        .platform-btn.hackerrank-disabled {
-          cursor: not-allowed !important;
-          opacity: 0.6;
-          pointer-events: none;
-        }
-        .platform-btn.hackerrank-disabled::after {
-          content: "Coming Soon";
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: rgba(0,0,0,0.8);
-          color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 0.8rem;
-          white-space: nowrap;
-          opacity: 0;
-          transition: opacity 0.2s;
-        }
-        .platform-btn.hackerrank-disabled:hover::after {
-          opacity: 1;
-        }
         .spinner {
           width: 50px;
           height: 50px;
@@ -471,6 +590,7 @@ const MultiPlatforms = () => {
           color: white;
         }
       `}</style>
+
       <div className="container">
         {/* Platform Selector */}
         <div className="platform-selector">
@@ -482,24 +602,25 @@ const MultiPlatforms = () => {
             LeetCode
           </button>
           <button
-            className={`platform-btn hackerrank-disabled`}
-            title="HackerRank support coming soon"
+            className={`platform-btn ${platform === 'atcoder' ? 'active' : ''}`}
+            onClick={() => handlePlatformChange('atcoder')}
           >
-            <i className="bi bi-terminal me-2"></i>
-            HackerRank
+            <i className="bi bi-trophy me-2"></i>
+            AtCoder
           </button>
         </div>
+
         {!handle ? (
           <div className="row justify-content-center">
             <div className="col-md-6">
               <div className="glass-card p-5 text-center">
                 <h3 className="text-light mb-4">
-                  Enter Your LeetCode Username
+                  Enter Your {platform === 'leetcode' ? 'LeetCode' : 'AtCoder'} Username
                 </h3>
                 <input
                   type="text"
                   className="glass-input w-100 mb-4"
-                  placeholder="e.g., john_doe"
+                  placeholder={platform === 'atcoder' ? 'e.g., tourist' : 'e.g., john_doe'}
                   value={inputHandle}
                   onChange={(e) => setInputHandle(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSubmit(e)}
@@ -530,16 +651,23 @@ const MultiPlatforms = () => {
                 <div className="col-md-8">
                   <h2 className="text-light fw-bold mb-2">{handle}</h2>
                   <span className="skill-badge">
-                    LeetCode Profile
+                    {platform === 'leetcode' ? 'LeetCode' : 'AtCoder'} Profile
                   </span>
-                  {userInfo.ranking && (
+                  {platform === 'leetcode' && userInfo.ranking && (
                     <div className="mt-3">
                       <span className="text-light opacity-75">
                         <i className="bi bi-trophy me-2"></i>Rank: #{userInfo.ranking.toLocaleString()}
                       </span>
                     </div>
                   )}
-                  {userInfo.contributionPoint > 0 && (
+                  {platform === 'atcoder' && (
+                    <div className="mt-3">
+                      <span className="text-light opacity-75">
+                        <i className="bi bi-star me-2"></i>Rating: {userInfo.rating} ({userInfo.ratingColor})
+                      </span>
+                    </div>
+                  )}
+                  {platform === 'leetcode' && userInfo.contributionPoint > 0 && (
                     <div className="mt-2">
                       <span className="text-light opacity-75">
                         <i className="bi bi-star me-2"></i>Contribution: {userInfo.contributionPoint}
@@ -548,23 +676,64 @@ const MultiPlatforms = () => {
                   )}
                 </div>
                 <div className="col-md-4 text-end">
-                  <>
-                    <h3 className="holographic-text fw-bold">{userInfo.totalSolved || 0}</h3>
-                    <p className="text-light opacity-75">Problems Solved</p>
-                    {userInfo.reputation > 0 && (
-                      <div className="mt-2">
-                        <span className="text-light opacity-75">
-                          Reputation: {userInfo.reputation.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                  </>
+                  <h3 className="holographic-text fw-bold">{userInfo.totalSolved || 0}</h3>
+                  <p className="text-light opacity-75">Problems Solved</p>
+                  {platform === 'leetcode' && userInfo.reputation > 0 && (
+                    <div className="mt-2">
+                      <span className="text-light opacity-75">
+                        Reputation: {userInfo.reputation.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {platform === 'atcoder' && (
+                    <div className="mt-2">
+                      <span className="text-light opacity-75">
+                        Total Submissions: {userInfo.totalSubmissions?.toLocaleString() || 0}
+                      </span>
+                    </div>
+                  )}
                   <button onClick={() => setHandle('')} className="cyber-button btn-sm mt-2">
                     Change Username
                   </button>
                 </div>
               </div>
             </div>
+
+            {/* AtCoder Enhanced Stats */}
+            {platform === 'atcoder' && userInfo && (
+              <div className="row g-4 mb-4">
+                <div className="col-md-3">
+                  <div className="glass-card p-4 text-center">
+                    <i className="bi bi-star fs-2 holographic-text mb-2"></i>
+                    <h3 className="holographic-text fw-bold">{userInfo.rating || 0}</h3>
+                    <p className="text-light opacity-75 mb-1">Current Rating</p>
+                    <small className="text-light opacity-50">{userInfo.ratingColor}</small>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="glass-card p-4 text-center">
+                    <i className="bi bi-send fs-2 text-info mb-2"></i>
+                    <h3 className="text-info fw-bold">{userInfo.totalSubmissions || 0}</h3>
+                    <p className="text-light opacity-75 mb-1">Total Submissions</p>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="glass-card p-4 text-center">
+                    <i className="bi bi-check2-circle fs-2 text-success mb-2"></i>
+                    <h3 className="text-success fw-bold">{userInfo.acceptedSubmissions || 0}</h3>
+                    <p className="text-light opacity-75 mb-1">Accepted Submissions</p>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="glass-card p-4 text-center">
+                    <i className="bi bi-check-circle fs-2 holographic-text mb-2"></i>
+                    <h3 className="holographic-text fw-bold">{userInfo.totalSolved || 0}</h3>
+                    <p className="text-light opacity-75 mb-1">Problems Solved</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Tabs */}
             <div className="glass-card p-3 mb-4">
               <div className="d-flex gap-2 flex-wrap">
@@ -578,12 +747,14 @@ const MultiPlatforms = () => {
                   <i className="bi bi-lightbulb me-2"></i>Skills
                 </button>
                 <button className={`tab-btn ${activeTab === 'problems' ? 'active' : ''}`} onClick={() => setActiveTab('problems')}>
-                  <i className="bi bi-list-stars me-2"></i>Problems & Contests
+                  <i className="bi bi-list-stars me-2"></i>
+                  {platform === 'leetcode' ? 'Problems & Contests' : 'Resources'}
                 </button>
               </div>
             </div>
+
             {/* LeetCode Overview */}
-            {activeTab === 'overview' && (
+            {activeTab === 'overview' && platform === 'leetcode' && (
               <>
                 <div className="row g-4 mb-4">
                   <div className="col-md-3">
@@ -675,92 +846,226 @@ const MultiPlatforms = () => {
                 </div>
               </>
             )}
-            {/* Analytics Tab */}
-            {activeTab === 'analytics' && (
-              <div className="glass-card p-4">
-                <h5 className="text-light fw-bold mb-4">Submission Activity (Last 30 Days)</h5>
-                {getLeetCodeSubmissionCalendar().length > 0 ? (
-                  <>
-                    <div className="mb-3">{renderHeatmap()}</div>
-                    <ResponsiveContainer width="100%" height={260}>
-                      <AreaChart data={getLeetCodeSubmissionCalendar()}>
-                        <defs>
-                          <linearGradient id="colorSubmissions" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#667eea" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#667eea" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
+
+            {/* AtCoder Overview */}
+            {activeTab === 'overview' && platform === 'atcoder' && (
+              <>
+                {/* Rating History */}
+                <div className="glass-card p-4 mb-4">
+                  <h5 className="text-light fw-bold mb-4">Rating History</h5>
+                  {userInfo.ratingHistory && userInfo.ratingHistory.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={userInfo.ratingHistory}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="date" stroke="#fff" angle={-45} textAnchor="end" height={80} fontSize={11} />
                         <YAxis stroke="#fff" />
                         <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
-                        <Area type="monotone" dataKey="submissions" stroke="#667eea" fillOpacity={1} fill="url(#colorSubmissions)" />
-                      </AreaChart>
+                        <Legend />
+                        <Line type="monotone" dataKey="rating" stroke="#667eea" name="Rating" strokeWidth={2} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="performance" stroke="#f093fb" name="Performance" strokeWidth={1} strokeDasharray="5 5" dot={false} />
+                      </LineChart>
                     </ResponsiveContainer>
-                  </>
-                ) : (
-                  <div className="text-center py-5">
-                    <p className="text-light opacity-50">No submission activity data available</p>
+                  ) : (
+                    <p className="text-light opacity-50">No rating history available.</p>
+                  )}
+                </div>
+
+                <div className="row g-4 mb-4">
+                  <div className="col-md-6">
+                    <div className="glass-card p-4">
+                      <h5 className="text-light fw-bold mb-4">Problems by Difficulty Rating</h5>
+                      {getAtCoderDifficultyData().length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={getAtCoderDifficultyData()}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis dataKey="name" stroke="#fff" />
+                            <YAxis stroke="#fff" />
+                            <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                            <Bar dataKey="value" name="Problems Solved">
+                              {getAtCoderDifficultyData().map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="text-center py-5">
+                          <p className="text-light opacity-50">Start solving problems to see difficulty distribution</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  <div className="col-md-6">
+                    <div className="glass-card p-4">
+                      <h5 className="text-light fw-bold mb-4">Problems by Point Value</h5>
+                      {Object.keys(userInfo.problemsByPoint || {}).length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={Object.entries(userInfo.problemsByPoint).map(([point, count]) => ({ point, count }))}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis dataKey="point" stroke="#fff" />
+                            <YAxis stroke="#fff" />
+                            <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                            <Bar dataKey="count" fill="#4facfe" name="Solved" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <p className="text-light opacity-50">No point data available.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Analytics Tab */}
+            {activeTab === 'analytics' && (
+              <div className="glass-card p-4">
+                <h5 className="text-light fw-bold mb-4">
+                  Submission Activity (Last 30 Days)
+                </h5>
+                {platform === 'leetcode' ? (
+                  getLeetCodeSubmissionCalendar().length > 0 ? (
+                    <>
+                      <div className="mb-3">{renderHeatmap()}</div>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <AreaChart data={getLeetCodeSubmissionCalendar()}>
+                          <defs>
+                            <linearGradient id="colorSubmissions" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#667eea" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#667eea" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="date" stroke="#fff" angle={-45} textAnchor="end" height={80} fontSize={11} />
+                          <YAxis stroke="#fff" />
+                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Area type="monotone" dataKey="submissions" stroke="#667eea" fillOpacity={1} fill="url(#colorSubmissions)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </>
+                  ) : (
+                    <div className="text-center py-5">
+                      <p className="text-light opacity-50">No submission activity data available</p>
+                    </div>
+                  )
+                ) : (
+                  getAtCoderActivityData().length > 0 ? (
+                    <>
+                      <div className="mb-3">{renderHeatmap()}</div>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <AreaChart data={getAtCoderActivityData()}>
+                          <defs>
+                            <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#667eea" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#667eea" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="date" stroke="#fff" angle={-45} textAnchor="end" height={80} fontSize={11} />
+                          <YAxis stroke="#fff" />
+                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Area type="monotone" dataKey="submissions" stroke="#667eea" fillOpacity={1} fill="url(#colorActivity)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </>
+                  ) : (
+                    <div className="text-center py-5">
+                      <p className="text-light opacity-50">No activity data available</p>
+                    </div>
+                  )
                 )}
               </div>
             )}
+
             {/* Skills Tab */}
             {activeTab === 'skills' && (
               <div className="glass-card p-4">
-                <h5 className="text-light fw-bold mb-4">Top Tags / Skills</h5>
-                {getLeetCodeSkillsData().length > 0 ? (
-                  <ResponsiveContainer width="100%" height={360}>
-                    <RadarChart data={getLeetCodeSkillsData()} cx="50%" cy="50%" outerRadius="80">
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="subject" stroke="#fff" />
-                      <PolarRadiusAxis />
-                      <Radar name="Problems" dataKey="value" stroke="#667eea" fill="#667eea" fillOpacity={0.6} />
-                      <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
-                    </RadarChart>
-                  </ResponsiveContainer>
+                <h5 className="text-light fw-bold mb-4">
+                  {platform === 'leetcode' ? 'Top Tags / Skills' : 'Contest Categories'}
+                </h5>
+                {platform === 'leetcode' ? (
+                  getLeetCodeSkillsData().length > 0 ? (
+                    <>
+                      <ResponsiveContainer width="100%" height={360}>
+                        <RadarChart data={getLeetCodeSkillsData()} cx="50%" cy="50%" outerRadius="80">
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="subject" stroke="#fff" />
+                          <PolarRadiusAxis />
+                          <Radar name="Problems" dataKey="value" stroke="#667eea" fill="#667eea" fillOpacity={0.6} />
+                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                      <div className="mt-3">
+                        {getLeetCodeSkillsData().map((t, i) => (
+                          <span key={i} className="skill-badge">{t.subject} — {t.value}</span>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-5">
+                      <p className="text-light opacity-50">No tag data available. Solve problems to populate tags.</p>
+                    </div>
+                  )
                 ) : (
-                  <div className="text-center py-5">
-                    <p className="text-light opacity-50">No tag data available. Solve problems to populate tags.</p>
-                  </div>
-                )}
-                {/* Also show a list of tags as badges for quick glance */}
-                {getLeetCodeSkillsData().length > 0 && (
-                  <div className="mt-3">
-                    {getLeetCodeSkillsData().map((t, i) => (
-                      <span key={i} className="skill-badge">{t.subject} — {t.value}</span>
-                    ))}
-                  </div>
+                  getAtCoderCategoryData().length > 0 ? (
+                    <>
+                      <ResponsiveContainer width="100%" height={360}>
+                        <RadarChart data={getAtCoderCategoryData()} cx="50%" cy="50%" outerRadius="80">
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="subject" stroke="#fff" />
+                          <PolarRadiusAxis />
+                          <Radar name="Problems" dataKey="value" stroke="#667eea" fill="#667eea" fillOpacity={0.6} />
+                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                      <div className="mt-3">
+                        {getAtCoderCategoryData().map((t, i) => (
+                          <span key={i} className="skill-badge">{t.subject} — {t.value}</span>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-5">
+                      <p className="text-light opacity-50">No category data available.</p>
+                    </div>
+                  )
                 )}
               </div>
             )}
-            {/* Problems & Contests Tab */}
+
+            {/* Problems & Resources Tab */}
             {activeTab === 'problems' && (
               <div className="glass-card p-4">
-                <h5 className="text-light fw-bold mb-3">Upcoming Contests</h5>
-                {contests && contests.length > 0 ? (
-                  <div className="row">
-                    {contests.map((c, idx) => (
-                      <div key={idx} className="col-md-6 mb-3">
-                        <div className="badge-card p-3 h-100 text-start">
-                          <div className="d-flex justify-content-between align-items-start">
-                            <div>
-                              <strong className="text-light">{c.name}</strong>
-                              <div className="text-light opacity-75 small">Starts: {new Date(c.start_time).toLocaleString()}</div>
-                            </div>
-                            <div>
-                              <a className="cyber-button btn-sm" href={c.url} target="_blank" rel="noreferrer">Go to Contest</a>
+                {platform === 'leetcode' && (
+                  <>
+                    <h5 className="text-light fw-bold mb-3">Upcoming Contests</h5>
+                    {contests && contests.length > 0 ? (
+                      <div className="row">
+                        {contests.map((c, idx) => (
+                          <div key={idx} className="col-md-6 mb-3">
+                            <div className="badge-card p-3 h-100 text-start">
+                              <div className="d-flex justify-content-between align-items-start">
+                                <div>
+                                  <strong className="text-light">{c.name}</strong>
+                                  <div className="text-light opacity-75 small">Starts: {new Date(c.start_time).toLocaleString()}</div>
+                                </div>
+                                <div>
+                                  <a className="cyber-button btn-sm" href={c.url} target="_blank" rel="noreferrer">Go to Contest</a>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-light opacity-50">No upcoming contests found.</p>
+                    ) : (
+                      <p className="text-light opacity-50">No upcoming contests found.</p>
+                    )}
+                    <hr style={{ borderColor: 'rgba(255,255,255,0.04)' }} />
+                  </>
                 )}
-                <hr style={{ borderColor: 'rgba(255,255,255,0.04)' }} />
-                <h5 className="text-light fw-bold mb-3">Recommended Problems</h5>
+                <h5 className="text-light fw-bold mb-3">
+                  {platform === 'leetcode' ? 'Recommended Problems' : 'AtCoder Resources'}
+                </h5>
                 {recommendedProblems && recommendedProblems.length > 0 ? (
                   <div className="row">
                     {recommendedProblems.map((p, i) => (
@@ -779,7 +1084,12 @@ const MultiPlatforms = () => {
                 ) : (
                   <p className="text-light opacity-50">No recommendations available yet.</p>
                 )}
-                <div className="mt-3 text-light opacity-75 small">Recommendations are generated from your top solved tags (best-effort). Problem links redirect to LeetCode tag pages or example problems.</div>
+                <div className="mt-3 text-light opacity-75 small">
+                  {platform === 'leetcode'
+                    ? 'Recommendations are generated from your top solved tags. Problem links redirect to LeetCode tag pages or example problems.'
+                    : 'Explore AtCoder contests and practice problems using the resources above.'
+                  }
+                </div>
               </div>
             )}
           </>

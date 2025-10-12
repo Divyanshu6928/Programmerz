@@ -38,7 +38,7 @@ const CodeChefProfile = () => {
       // Fetch user data and upcoming contests in parallel
       const [userResponse, contestsResponse] = await Promise.all([
         fetch(`${API_BASE}/api/codechef/${username}`),
-        fetch(`${API_BASE}/api/codechef-contests`)
+        fetch(`${API_BASE}/codechef-contests`)
       ]);
       
       if (!userResponse.ok) {
@@ -689,7 +689,8 @@ const CodeChefProfile = () => {
                         <Tooltip 
                           contentStyle={{
                             background: 'rgba(26, 26, 46, 0.95)', 
-                            border: '1px solid rgba(102, 126, 234, 0.3)'
+                            border: '1px solid rgba(102, 126, 234, 0.3)' ,
+                            borderRadius: '10px'
                           }}
                         />
                         <Bar dataKey="count" fill="#667eea" radius={[8, 8, 0, 0]} />

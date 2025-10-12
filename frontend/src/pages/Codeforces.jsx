@@ -583,7 +583,7 @@ const CodeforcesProfile = () => {
                           <XAxis dataKey="date" stroke="#fff" />
                           <YAxis stroke="#fff" />
                           <Tooltip 
-                            contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }}
+                            contentStyle={{ background: 'rgba(251, 251, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px'}}
                           />
                           <Area type="monotone" dataKey="rating" stroke="#667eea" fillOpacity={1} fill="url(#colorRating)" strokeWidth={2} />
                         </AreaChart>
@@ -652,7 +652,7 @@ const CodeforcesProfile = () => {
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                           <XAxis dataKey="rating" stroke="#fff" />
                           <YAxis stroke="#fff" />
-                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                           <Bar dataKey="count" fill="#667eea" />
                         </BarChart>
                       </ResponsiveContainer>
@@ -668,7 +668,7 @@ const CodeforcesProfile = () => {
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                           <XAxis type="number" stroke="#fff" />
                           <YAxis dataKey="name" type="category" stroke="#fff" width={100} />
-                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                           <Bar dataKey="value">
                             {getDifficultyAnalysis().map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -690,7 +690,7 @@ const CodeforcesProfile = () => {
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                           <XAxis dataKey="name" stroke="#fff" angle={-45} textAnchor="end" height={120} />
                           <YAxis stroke="#fff" />
-                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                           <Bar dataKey="value" fill="#f093fb" />
                         </BarChart>
                       </ResponsiveContainer>
@@ -716,7 +716,7 @@ const CodeforcesProfile = () => {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                          <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -731,7 +731,7 @@ const CodeforcesProfile = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="name" stroke="#fff" />
                       <YAxis stroke="#fff" />
-                      <Tooltip contentStyle={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
+                      <Tooltip contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(102, 126, 234, 0.3)', borderRadius: '10px' }} />
                       <Bar dataKey="value">
                         {getVerdictDistribution().map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.name === 'OK' ? '#4ade80' : COLORS[index % COLORS.length]} />
