@@ -2,16 +2,21 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
-const { getCodeChefData } = require('proxor');
+const { getCodeChefData } = require('proxor'); // Ensure this package works as expected
 const rateLimit = require('express-rate-limit');
 const cheerio = require('cheerio');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration for production
+// ✅ Fixed: Remove trailing spaces in CORS origins
 const corsOptions = {
-  origin: ['https://www.programmerz.live', 'https://programmerz.live', 'http://localhost:5173', 'http://localhost:3000'],
+  origin: [
+    'https://www.programmerz.live',
+    'https://programmerz.live',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
   methods: ['GET'],
   credentials: false,
   optionsSuccessStatus: 200
@@ -20,21 +25,20 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Rate limiting to prevent abuse
+// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'Too many requests from this IP, please try again later.'
 });
-
 app.use('/api/', limiter);
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// CodeChef Profile endpoint
+// CodeChef Profile (using proxor)
 app.get('/api/codechef/:username', async (req, res) => {
   try {
     const data = await getCodeChefData(req.params.username);
@@ -44,120 +48,39 @@ app.get('/api/codechef/:username', async (req, res) => {
   }
 });
 
-// app.get('/api/codechef/:username', async (req, res) => {
-//   try {
-//     const { username } = req.params;
-//     console.log(`Fetching CodeChef profile for: ${username}`);
-    
-//     const response = await fetch(`https://www.codechef.com/users/${username}`, {
-//       method: 'GET',
-//       headers: {
-//         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-//         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-//       },
-//       timeout: 10000
-//     });
-
-//     if (!response.ok) {
-//       return res.status(404).json({ 
-//         success: false, 
-//         error: 'User not found' 
-//       });
-//     }
-
-//     const html = await response.text();
-//     const $ = cheerio.load(html);
-    
-//     const ratingText = $('.rating-number').text().trim();
-//     const rating = parseInt(ratingText) || 0;
-    
-//     const starsText = $('.rating-star span').text().trim();
-//     const stars = (starsText.match(/★/g) || []).length;
-    
-//     const highestText = $('.rating-header small').text();
-//     const highestRating = parseInt(highestText.match(/\d+/)?.[0]) || rating;
-    
-//     const ranks = [];
-//     $('.rating-ranks li').each((i, el) => {
-//       ranks.push($(el).text().trim());
-//     });
-    
-//     const globalRankText = ranks.find(r => r.includes('Global Rank')) || '';
-//     const countryRankText = ranks.find(r => r.includes('Country Rank')) || '';
-    
-//     const globalRank = globalRankText.match(/\d+/)?.[0] || 'N/A';
-//     const countryRank = countryRankText.match(/\d+/)?.[0] || 'N/A';
-    
-//     const problemsText = $('.problems-solved').text();
-//     const problemCounts = problemsText.match(/\d+/g) || [];
-    
-//     const userData = {
-//       success: true,
-//       username: username,
-//       currentRating: rating,
-//       highestRating: highestRating,
-//       stars: stars,
-//       globalRank: globalRank,
-//       countryRank: countryRank,
-//       fullysolvedCount: parseInt(problemCounts[0]) || 0,
-//       partiallysolvedCount: parseInt(problemCounts[1]) || 0
-//     };
-    
-//     res.set({
-//       'Cache-Control': 'public, max-age=300',
-//       'Content-Type': 'application/json'
-//     });
-    
-//     res.json(userData);
-//     console.log(`Successfully fetched profile for ${username}`);
-    
-//   } catch (error) {
-//     console.error('Error fetching CodeChef profile:', error);
-//     res.status(500).json({
-//       success: false,
-//       error: 'Failed to fetch user profile',
-//       message: error.message
-//     });
-//   }
-// });
-
-// CodeChef ratings endpoint
+// CodeChef rating history
 app.get('/api/codechef/:username/rating-history', async (req, res) => {
   const { username } = req.params;
-  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
-    const axios = require('axios');
-    const cheerio = require('cheerio');
-    
-    // Fetch user's CodeChef profile page
     const url = `https://www.codechef.com/users/${username}`;
-    const response = await axios.get(url, {
+    const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
-      timeout: 10000
+      signal: controller.signal
     });
-    
-    if (response.status !== 200) {
+
+    if (!response.ok) {
       return res.status(404).json({
         success: false,
-        message: 'User not found or CodeChef is unreachable'
+        message: 'User not found'
       });
     }
-    
-    const $ = cheerio.load(response.data);
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
     let ratingData = [];
-    
-    // Extract rating data from script tags
+
     $('script').each((i, script) => {
       const scriptContent = $(script).html();
       if (scriptContent && scriptContent.includes('all_rating')) {
-        // Extract the all_rating array using regex
         const match = scriptContent.match(/all_rating\s*=\s*(\[.*?\]);/s);
         if (match) {
           try {
             const ratingArray = JSON.parse(match[1]);
-            
             ratingData = ratingArray.map(contest => ({
               code: contest.code || '',
               name: contest.name || '',
@@ -168,181 +91,71 @@ app.get('/api/codechef/:username/rating-history', async (req, res) => {
               old_rating: contest.old_rating || 0
             }));
           } catch (e) {
-            console.error('Failed to parse rating data:', e);
+            console.error('Parse error:', e);
           }
         }
       }
     });
-    
-    return res.json({
-      success: true,
-      ratingHistory: ratingData,
-      count: ratingData.length
-    });
-    
+
+    clearTimeout(timeoutId);
+    res.json({ success: true, ratingHistory: ratingData, count: ratingData.length });
+
   } catch (error) {
-    console.error('Error fetching rating history:', error.message);
-    
-    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-      return res.status(408).json({
-        success: false,
-        message: 'Request timeout. Please try again.'
-      });
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      return res.status(408).json({ success: false, message: 'Request timeout' });
     }
-    
-    return res.status(500).json({
-      success: false,
-      message: `Server error: ${error.message}`
-    });
+    console.error('Rating history error:', error.message);
+    res.status(500).json({ success: false, message: `Server error: ${error.message}` });
   }
 });
 
+// ❌ Removed GFG endpoint (or define getGFGData)
+// If you don't have getGFGData, comment this out or implement it.
+/*
 app.get('/api/gfg/:username', async (req, res) => {
-  try {
-    const { username } = req.params;
-    const gfgData = await getGFGData(username);
-    
-    res.json({
-      success: true,
-      ...gfgData
-    });
-  } catch (error) {
-    res.status(404).json({ 
-      success: false, 
-      error: 'User not found' 
-    });
-  }
+  res.status(501).json({ success: false, error: 'GFG endpoint not implemented' });
 });
+*/
 
-// CodeChef Contests endpoint
+// CodeChef contests
 app.get('/api/codechef-contests', async (req, res) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
-    console.log('Fetching CodeChef contests...');
-    
     const response = await fetch('https://www.codechef.com/api/list/contests/all', {
-      method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json'
       },
-      timeout: 10000
+      signal: controller.signal
     });
 
-    if (!response.ok) {
-      throw new Error(`CodeChef API returned ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`CodeChef API returned ${response.status}`);
 
     const data = await response.json();
-    
-    res.set({
-      'Cache-Control': 'public, max-age=600',
-      'Content-Type': 'application/json'
-    });
-    
+    clearTimeout(timeoutId);
+    res.set({ 'Cache-Control': 'public, max-age=600' });
     res.json(data);
-    console.log('Successfully fetched contests');
-    
+
   } catch (error) {
-    console.error('Error fetching contests:', error);
-    res.status(500).json({
-      status: 'error',
-      error: 'Failed to fetch contests',
-      message: error.message
-    });
+    clearTimeout(timeoutId);
+    console.error('Contests error:', error);
+    res.status(500).json({ status: 'error', error: 'Failed to fetch contests', message: error.message });
   }
 });
 
-// Enhanced CodeChef Profile with Historical Data
+// Detailed CodeChef profile
 app.get('/api/codechef/:username/detailed', async (req, res) => {
+  const { username } = req.params;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
-    const { username } = req.params;
-    console.log(`Fetching detailed CodeChef data for: ${username}`);
-    
-    const profileResponse = await fetch(`https://www.codechef.com/users/${username}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
-    });
-
-    if (!profileResponse.ok) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    const html = await profileResponse.text();
-    const $ = cheerio.load(html);
-    
-    const rating = parseInt($('.rating-number').text().trim()) || 0;
-    const stars = ($('.rating-star span').text().trim().match(/★/g) || []).length;
-    const highestRating = parseInt($('.rating-header small').text().match(/\d+/)?.[0]) || rating;
-    
-    const ranks = [];
-    $('.rating-ranks li').each((i, el) => {
-      ranks.push($(el).text().trim());
-    });
-    
-    const globalRank = ranks.find(r => r.includes('Global'))?.match(/\d+/)?.[0] || 'N/A';
-    const countryRank = ranks.find(r => r.includes('Country'))?.match(/\d+/)?.[0] || 'N/A';
-    
-    const problemCounts = $('.problems-solved').text().match(/\d+/g) || [];
-    
-    const scriptTags = $('script').toArray();
-    let ratingHistory = [];
-    
-    for (let script of scriptTags) {
-      const scriptContent = $(script).html();
-      if (scriptContent && scriptContent.includes('rating_data')) {
-        const ratingMatch = scriptContent.match(/var\s+rating_data\s*=\s*(\[.*?\]);/s);
-        if (ratingMatch) {
-          try {
-            ratingHistory = JSON.parse(ratingMatch[1]);
-          } catch (e) {
-            console.log('Failed to parse rating data');
-          }
-        }
-      }
-    }
-    
-    const userData = {
-      success: true,
-      username: username,
-      currentRating: rating,
-      highestRating: highestRating,
-      stars: stars,
-      globalRank: globalRank,
-      countryRank: countryRank,
-      fullysolvedCount: parseInt(problemCounts[0]) || 0,
-      partiallysolvedCount: parseInt(problemCounts[1]) || 0,
-      ratingHistory: ratingHistory
-    };
-    
-    res.set({
-      'Cache-Control': 'public, max-age=300',
-      'Content-Type': 'application/json'
-    });
-    
-    res.json(userData);
-    console.log(`Successfully fetched detailed profile for ${username}`);
-    
-  } catch (error) {
-    console.error('Error fetching detailed profile:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch detailed profile',
-      message: error.message
-    });
-  }
-});
-
-// LeetCode Profile endpoint (SINGLE UNIFIED VERSION)
-app.get('/api/leetcode/:username', async (req, res) => {
-  try {
-    const { username } = req.params;
-    console.log(`Fetching LeetCode profile for: ${username}`);
-    
-    const response = await fetch(`https://leetcode.com/${username}/`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
+    const response = await fetch(`https://www.codechef.com/users/${username}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      signal: controller.signal
     });
 
     if (!response.ok) {
@@ -350,27 +163,85 @@ app.get('/api/leetcode/:username', async (req, res) => {
     }
 
     const html = await response.text();
-    
-    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
-    
-    if (!match) {
-      throw new Error('Could not parse profile data');
+    const $ = cheerio.load(html);
+
+    const rating = parseInt($('.rating-number').text().trim()) || 0;
+    const stars = ($('.rating-star span').text().trim().match(/★/g) || []).length;
+    const highestRating = parseInt($('.rating-header small').text().match(/\d+/)?.[0]) || rating;
+
+    const ranks = [];
+    $('.rating-ranks li').each((i, el) => {
+      ranks.push($(el).text().trim());
+    });
+
+    const globalRank = ranks.find(r => r.includes('Global'))?.match(/\d+/)?.[0] || 'N/A';
+    const countryRank = ranks.find(r => r.includes('Country'))?.match(/\d+/)?.[0] || 'N/A';
+
+    const problemCounts = $('.problems-solved').text().match(/\d+/g) || [];
+
+    let ratingHistory = [];
+    $('script').each((i, script) => {
+      const content = $(script).html();
+      if (content && content.includes('rating_data')) {
+        const match = content.match(/var\s+rating_data\s*=\s*(\[.*?\]);/s);
+        if (match) {
+          try {
+            ratingHistory = JSON.parse(match[1]);
+          } catch (e) {
+            console.log('Rating data parse failed');
+          }
+        }
+      }
+    });
+
+    clearTimeout(timeoutId);
+    res.set({ 'Cache-Control': 'public, max-age=300' });
+    res.json({
+      success: true,
+      username,
+      currentRating: rating,
+      highestRating,
+      stars,
+      globalRank,
+      countryRank,
+      fullysolvedCount: parseInt(problemCounts[0]) || 0,
+      partiallysolvedCount: parseInt(problemCounts[1]) || 0,
+      ratingHistory
+    });
+
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error('Detailed profile error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch detailed profile', message: error.message });
+  }
+});
+
+// LeetCode profile
+app.get('/api/leetcode/:username', async (req, res) => {
+  const { username } = req.params;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const response = await fetch(`https://leetcode.com/${username}/`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      return res.status(404).json({ success: false, error: 'User not found' });
     }
+
+    const html = await response.text();
+    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s);
+    if (!match) throw new Error('Profile data not found');
 
     const pageData = JSON.parse(match[1]);
     const profile = pageData.props?.pageProps?.dehydratedState?.queries?.[0]?.state?.data?.matchedUser;
-    
-    if (!profile) {
-      throw new Error('Profile data not found');
-    }
+    if (!profile) throw new Error('Profile not found');
 
     const acStats = profile.submitStatsGlobal?.acSubmissionNum || [];
-    const problemsSolved = {
-      easy: 0,
-      medium: 0,
-      hard: 0
-    };
-
+    const problemsSolved = { easy: 0, medium: 0, hard: 0 };
     acStats.forEach(stat => {
       if (stat.difficulty === 'Easy') problemsSolved.easy = stat.count;
       if (stat.difficulty === 'Medium') problemsSolved.medium = stat.count;
@@ -379,7 +250,6 @@ app.get('/api/leetcode/:username', async (req, res) => {
 
     const totalSolved = problemsSolved.easy + problemsSolved.medium + problemsSolved.hard;
 
-    // Extract tag stats
     const tagStats = [];
     if (profile.tagProblemCounts) {
       const allTags = [
@@ -387,25 +257,16 @@ app.get('/api/leetcode/:username', async (req, res) => {
         ...(profile.tagProblemCounts.intermediate || []),
         ...(profile.tagProblemCounts.fundamental || [])
       ];
-      
       const tagMap = {};
       allTags.forEach(tag => {
-        if (tagMap[tag.tagName]) {
-          tagMap[tag.tagName] += tag.problemsSolved;
-        } else {
-          tagMap[tag.tagName] = tag.problemsSolved;
-        }
+        tagMap[tag.tagName] = (tagMap[tag.tagName] || 0) + tag.problemsSolved;
       });
-      
       Object.entries(tagMap)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10)
-        .forEach(([name, count]) => {
-          tagStats.push({ subject: name, value: count });
-        });
+        .forEach(([name, count]) => tagStats.push({ subject: name, value: count }));
     }
 
-    // Extract contest history
     const contestHistory = (profile.userContestRankingHistory || []).map(contest => ({
       rating: Math.round(contest.rating),
       ranking: contest.ranking,
@@ -413,195 +274,136 @@ app.get('/api/leetcode/:username', async (req, res) => {
       date: new Date(contest.contest.startTime * 1000).toLocaleDateString()
     }));
 
-    const userData = {
+    clearTimeout(timeoutId);
+    res.set({ 'Cache-Control': 'public, max-age=300' });
+    res.json({
       success: true,
-      username: username,
+      username,
       ranking: profile.profile?.ranking || 0,
       reputation: profile.profile?.reputation || 0,
-      totalSolved: totalSolved,
-      problemsSolved: problemsSolved,
+      totalSolved,
+      problemsSolved,
       contestRating: profile.userContestRanking?.rating || 0,
       contestsAttended: profile.userContestRanking?.attendedContestsCount || 0,
-      tagStats: tagStats,
-      contestHistory: contestHistory
-    };
-
-    res.set({
-      'Cache-Control': 'public, max-age=300',
-      'Content-Type': 'application/json'
+      tagStats,
+      contestHistory
     });
-
-    res.json(userData);
-    console.log(`Successfully fetched LeetCode profile for ${username}`);
 
   } catch (error) {
-    console.error('Error fetching LeetCode profile:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch profile',
-      message: error.message
-    });
+    clearTimeout(timeoutId);
+    console.error('LeetCode error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch profile', message: error.message });
   }
 });
 
-// HackerRank Profile endpoint
+// HackerRank profile
 app.get('/api/hackerrank/:username', async (req, res) => {
+  const { username } = req.params;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
-    const { username } = req.params;
-    console.log(`Fetching HackerRank profile for: ${username}`);
-    
     const response = await fetch(`https://www.hackerrank.com/rest/hackers/${username}/`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
-      }
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: controller.signal
     });
 
-    if (!response.ok) {
-      throw new Error('User not found');
-    }
+    if (!response.ok) throw new Error('User not found');
 
     const data = await response.json();
-    
-    if (!data.model) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
+    if (!data.model) return res.status(404).json({ success: false, error: 'User not found' });
 
     const user = data.model;
-
-    const skills = (user.skills || []).map(skill => ({
-      name: skill.name,
-      level: skill.level || 'Beginner',
-      score: skill.score || 0
-    }));
-
-    const badges = (user.badges || []).map(badge => ({
-      name: badge.name,
-      level: badge.level || 'Bronze',
-      category: badge.category
-    }));
+    const skills = (user.skills || []).map(s => ({ name: s.name, level: s.level || 'Beginner', score: s.score || 0 }));
+    const badges = (user.badges || []).map(b => ({ name: b.name, level: b.level || 'Bronze', category: b.category }));
 
     const challengesSolved = {};
-    if (user.solved_challenges) {
-      user.solved_challenges.forEach(challenge => {
-        const category = challenge.category || 'General';
-        challengesSolved[category] = (challengesSolved[category] || 0) + 1;
-      });
-    }
+    (user.solved_challenges || []).forEach(ch => {
+      const cat = ch.category || 'General';
+      challengesSolved[cat] = (challengesSolved[cat] || 0) + 1;
+    });
 
-    const userData = {
+    clearTimeout(timeoutId);
+    res.set({ 'Cache-Control': 'public, max-age=300' });
+    res.json({
       success: true,
-      username: username,
+      username,
       level: user.level || 0,
-      skills: skills,
-      badges: badges,
+      skills,
+      badges,
       totalChallenges: user.solved_challenges?.length || 0,
-      challengesSolved: challengesSolved,
+      challengesSolved,
       country: user.country,
       school: user.school
-    };
-
-    res.set({
-      'Cache-Control': 'public, max-age=300',
-      'Content-Type': 'application/json'
     });
-
-    res.json(userData);
-    console.log(`Successfully fetched HackerRank profile for ${username}`);
 
   } catch (error) {
-    console.error('Error fetching HackerRank profile:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch profile',
-      message: error.message
-    });
+    clearTimeout(timeoutId);
+    console.error('HackerRank error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch profile', message: error.message });
   }
 });
 
-// ICPC Problems endpoint
+// ICPC Problems
 app.get('/api/icpc-problems', async (req, res) => {
-  try {
-    console.log('Fetching ICPC problems from CodeChef...');
-    
-    const response = await fetch(
-      'https://www.codechef.com/api/practice/syllabus/icpc?roadmapSlug',
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Programmerz/1.0'
-        },
-        timeout: 10000
-      }
-    );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    if (!response.ok) {
-      throw new Error(`CodeChef API returned ${response.status}`);
-    }
+  try {
+    const response = await fetch('https://www.codechef.com/api/practice/syllabus/icpc?roadmapSlug', {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Programmerz/1.0'
+      },
+      signal: controller.signal
+    });
+
+    if (!response.ok) throw new Error(`CodeChef API returned ${response.status}`);
 
     const data = await response.json();
-    
-    res.set({
-      'Cache-Control': 'public, max-age=3600',
-      'Content-Type': 'application/json'
-    });
-    
+    clearTimeout(timeoutId);
+    res.set({ 'Cache-Control': 'public, max-age=3600' });
     res.json(data);
-    console.log('Successfully fetched ICPC problems');
-    
+
   } catch (error) {
-    console.error('Error fetching ICPC problems:', error);
-    res.status(500).json({
-      error: 'Failed to fetch ICPC problems',
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
+    clearTimeout(timeoutId);
+    console.error('ICPC problems error:', error);
+    res.status(500).json({ error: 'Failed to fetch ICPC problems', message: error.message });
   }
 });
 
-// Codeforces problems endpoint
+// Codeforces problems
 app.get('/api/codeforces-problems', async (req, res) => {
-  try {
-    const response = await fetch(
-      'https://codeforces.com/api/problemset.problems',
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        },
-        timeout: 10000
-      }
-    );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    if (!response.ok) {
-      throw new Error(`Codeforces API returned ${response.status}`);
-    }
+  try {
+    const response = await fetch('https://codeforces.com/api/problemset.problems', {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal
+    });
+
+    if (!response.ok) throw new Error(`Codeforces API returned ${response.status}`);
 
     const data = await response.json();
-    
-    res.set({
-      'Cache-Control': 'public, max-age=3600',
-      'Content-Type': 'application/json'
-    });
-    
+    clearTimeout(timeoutId);
+    res.set({ 'Cache-Control': 'public, max-age=3600' });
     res.json(data);
+
   } catch (error) {
-    console.error('Error fetching Codeforces problems:', error);
-    res.status(500).json({
-      error: 'Failed to fetch Codeforces problems',
-      message: error.message
-    });
+    clearTimeout(timeoutId);
+    console.error('Codeforces problems error:', error);
+    res.status(500).json({ error: 'Failed to fetch Codeforces problems', message: error.message });
   }
 });
 
+// AtCoder endpoints
 app.get('/api/atcoder/submissions/:username', async (req, res) => {
+  const { username } = req.params;
   try {
-    const { username } = req.params;
     const url = `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${encodeURIComponent(username)}&from_second=0`;
     const response = await fetch(url);
-    if (!response.ok) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!response.ok) return res.status(404).json({ error: 'User not found' });
     const data = await response.json();
     res.json(data);
   } catch (error) {
@@ -611,13 +413,12 @@ app.get('/api/atcoder/submissions/:username', async (req, res) => {
 });
 
 app.get('/api/atcoder/history/:username', async (req, res) => {
+  const { username } = req.params;
   try {
-    const { username } = req.params;
+    // ✅ Fixed URL: removed spaces
     const url = `https://kenkoooo.com/atcoder/proxy/users/${encodeURIComponent(username)}/history/json`;
     const response = await fetch(url);
-    if (!response.ok) {
-      return res.status(404).json({ error: 'User history not found' });
-    }
+    if (!response.ok) return res.status(404).json({ error: 'User history not found' });
     const data = await response.json();
     res.json(data);
   } catch (error) {
@@ -632,27 +433,26 @@ app.get('/api/atcoder/resources/:resource', async (req, res) => {
     return res.status(400).json({ error: 'Invalid resource' });
   }
   try {
+    // ✅ Fixed URL
     const url = `https://kenkoooo.com/atcoder/resources/${req.params.resource}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Resource fetch failed');
-    const data = await response.json();
-    res.setHeader('Cache-Control', 'public, max-age=3600'); // Optional: cache 1 hour
-    res.json(data);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.json(await response.json());
   } catch (error) {
     console.error('AtCoder resource error:', error);
     res.status(500).json({ error: 'Failed to fetch resource' });
   }
 });
 
-// 404 handler
+// 404 & error handlers
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
-// Error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
