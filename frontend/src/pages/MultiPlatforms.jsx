@@ -404,7 +404,7 @@ const MultiPlatforms = () => {
     if (!userInfo?.problemsByRating) return [];
     return Object.entries(userInfo.problemsByRating)
       .map(([rating, count]) => ({
-        name: `${rating}+`,
+        name: `${-rating}+`,
         value: count,
         color: getColorByRating(parseInt(rating))
       }))
