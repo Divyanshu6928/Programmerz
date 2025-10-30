@@ -433,7 +433,7 @@ app.get('/api/atcoder/resources/:resource', async (req, res) => {
     return res.status(400).json({ error: 'Invalid resource' });
   }
   try {
-    // ✅ Fixed URL
+    // ✅ Fixed URL: removed spaces
     const url = `https://kenkoooo.com/atcoder/resources/${req.params.resource}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Resource fetch failed');

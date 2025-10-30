@@ -131,25 +131,24 @@ const MultiPlatforms = () => {
         setUserInfo(transformedData);
         createRecommendedProblems(transformedData.tagStats || []);
       } else if (platform === 'atcoder') {
-        const now = Math.floor(Date.now() / 1000);
-        const oneYearAgo = now - 365 * 24 * 3600;
-
-        // ✅ All user data via YOUR backend proxy (CORS-safe)
-        const [
-          submissionsResp,
-          historyResp,
-          problemModelsResp,
-          mergedProblemsResp,
-          contestsResp,
-          contestProblemMapResp
-        ] = await Promise.all([
-          fetch(`/api/atcoder/submissions/${userHandle}`),
-          fetch(`/api/atcoder/history/${userHandle}`),
-          fetch('https://kenkoooo.com/atcoder/resources/problem-models.json'),
-          fetch('https://kenkoooo.com/atcoder/resources/merged-problems.json'),
-          fetch('https://kenkoooo.com/atcoder/resources/contests.json'),
-          fetch('https://kenkoooo.com/atcoder/resources/contest-problem.json')
-        ]);
+          const now = Math.floor(Date.now() / 1000);
+          const oneYearAgo = now - 365 * 24 * 3600;
+          // ✅ All user data via YOUR backend proxy (CORS-safe)
+          const [
+            submissionsResp,
+            historyResp,
+            problemModelsResp,
+            mergedProblemsResp,
+            contestsResp,
+            contestProblemMapResp
+          ] = await Promise.all([
+            fetch(`/api/atcoder/submissions/${userHandle}`),
+            fetch(`/api/atcoder/history/${userHandle}`),
+            fetch(`/api/atcoder/resources/problem-models.json`),
+            fetch(`/api/atcoder/resources/merged-problems.json`),
+            fetch(`/api/atcoder/resources/contests.json`),
+            fetch(`/api/atcoder/resources/contest-problem.json`)
+          ]);
 
         if (!submissionsResp.ok) {
           throw new Error('User not found. Please verify the username.');
