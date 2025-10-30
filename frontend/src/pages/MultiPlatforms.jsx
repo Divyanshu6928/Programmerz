@@ -134,20 +134,15 @@ const MultiPlatforms = () => {
           const now = Math.floor(Date.now() / 1000);
           const oneYearAgo = now - 365 * 24 * 3600;
           // ✅ All user data via YOUR backend proxy (CORS-safe)
-          const [
-            submissionsResp,
-            historyResp,
-            problemModelsResp,
-            mergedProblemsResp,
-            contestsResp,
-            contestProblemMapResp
-          ] = await Promise.all([
-            fetch(`/api/atcoder/submissions/${userHandle}`),
-            fetch(`/api/atcoder/history/${userHandle}`),
-            fetch(`/api/atcoder/resources/problem-models.json`),
-            fetch(`/api/atcoder/resources/merged-problems.json`),
-            fetch(`/api/atcoder/resources/contests.json`),
-            fetch(`/api/atcoder/resources/contest-problem.json`)
+          const BACKEND_URL = 'https://programmerz.onrender.com';
+
+          const [submissionsResp, historyResp, problemModelsResp, mergedProblemsResp, contestsResp, contestProblemMapResp] = await Promise.all([
+            fetch(`${BACKEND_URL}/api/atcoder/submissions/${userHandle}`),
+            fetch(`${BACKEND_URL}/api/atcoder/history/${userHandle}`),
+            fetch(`${BACKEND_URL}/api/atcoder/resources/problem-models.json`),
+            fetch(`${BACKEND_URL}/api/atcoder/resources/merged-problems.json`),
+            fetch(`${BACKEND_URL}/api/atcoder/resources/contests.json`),
+            fetch(`${BACKEND_URL}/api/atcoder/resources/contest-problem.json`)
           ]);
 
         if (!submissionsResp.ok) {
